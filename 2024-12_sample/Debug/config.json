@@ -1,0 +1,23 @@
+{
+        "compilation": {
+		"compilers_to_recognize": [
+			{
+                         	"executable": "/opt/ST/STM32CubeCLT_1.17.0/GNU-tools-for-STM32/bin/arm-none-eabi-gcc",
+				"flags_to_add": [],
+				"flags_to_remove": []
+			}
+		],
+                "compilers_to_exclude": []
+	},
+        "output": {
+                "content": {
+                        "include_only_existing_source": true,
+			"paths_to_include": [],
+			"paths_to_exclude": []
+		},
+                "format": {
+                        "command_as_array": true,
+			"drop_output_field": false
+		}
+	}
+}
