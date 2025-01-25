@@ -1,10 +1,14 @@
-To build:
+Prerequisites:
+* Install the [STM32CubeCLT](https://www.st.com/en/development-tools/stm32cubeclt.html?ecmp=tt9470_gl_link_feb2019&rt=um&id=UM3088)
 
+
+To build the project:
 ```
 ./build.sh
 ```
 
-To flash a device:
+
+To program a device:
 ```
-STM32_Programmer_CLI --connect port=SWD --write cmake-build-debug/2024-12_sample.elf --verify -rst
+./program.sh
 ```

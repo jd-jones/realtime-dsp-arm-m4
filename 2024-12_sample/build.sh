@@ -1,7 +1,9 @@
 #!/bin/bash
 set -xue
 
+
 BUILD_DIR="./cmake-build-debug"
+
 
 # Clean
 mkdir -p "$BUILD_DIR"
