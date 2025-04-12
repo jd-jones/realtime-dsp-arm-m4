@@ -1,0 +1,31 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "description": "Debug build preset",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "toolchainFile": "${sourceDir}/cmake/cortex-m4f.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "1"
+            }
+        },
+        {
+            "name": "release",
+            "inherits": "debug",
+            "displayName": "Release",
+            "description": "Release build preset",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        }
+    ]
+}
