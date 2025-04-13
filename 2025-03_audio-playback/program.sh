@@ -2,7 +2,7 @@
 set -xue
 
 
-BUILD_DIR="./build"
+BUILD_DIR="./build/app"
 project_name="2025-03_audio-playback"
 
 

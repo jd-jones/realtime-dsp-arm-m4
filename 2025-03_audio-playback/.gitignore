@@ -7,6 +7,7 @@ libraries/2025-03_audio-playback/
 libraries/CMSIS/Documentation
 notes/
 compile_commands.json
+docs/index.html
 
 # General
 */.DS_Store
