@@ -54,7 +54,6 @@ function(add_stm32f4_ll stm32f4_ll_root stm32f4_hal_conf_dir device_compile_defi
         ${ll_src}/stm32f4xx_ll_utils.c
     )
 
-    message(stm32f4_hal_conf_dir="${stm32f4_hal_conf_dir}")
     target_include_directories(${STM32F4_LL} PUBLIC
         # ${cmsis_root}/Core/Include
         ${cmsis_root}/Device/ST/STM32F4xx/Include
@@ -67,6 +66,124 @@ function(add_stm32f4_ll stm32f4_ll_root stm32f4_hal_conf_dir device_compile_defi
         ${device_compile_definition}
     )
     target_link_libraries(${STM32F4_LL} PUBLIC
+        stm32f4_cmsis_core
+    )
+endfunction()
+
+
+function(add_stm32f4_hal stm32f4_hal_root stm32f4_hal_conf_dir device_compile_definition)
+    set(STM32F4_HAL stm32f4_hal_driver)
+    set(hal_src ${stm32f4_hal_root}/Src)
+
+    add_library(${STM32F4_HAL}
+		${hal_src}/stm32f4xx_hal.c
+		${hal_src}/stm32f4xx_hal_i2c.c
+		${hal_src}/stm32f4xx_hal_i2c_ex.c
+		${hal_src}/stm32f4xx_hal_i2s.c
+		${hal_src}/stm32f4xx_hal_i2s_ex.c
+		${hal_src}/stm32f4xx_hal_sram.c
+		${hal_src}/stm32f4xx_hal_tim.c
+		${hal_src}/stm32f4xx_hal_tim_ex.c
+		${hal_src}/stm32f4xx_hal_adc.c
+		${hal_src}/stm32f4xx_hal_adc_ex.c
+		${hal_src}/stm32f4xx_hal_can.c
+		${hal_src}/stm32f4xx_hal_irda.c
+		${hal_src}/stm32f4xx_hal_cec.c
+		${hal_src}/stm32f4xx_hal_iwdg.c
+		# ${hal_src}/stm32f4xx_hal_timebase_rtc_alarm_template.c
+		# ${hal_src}/stm32f4xx_hal_timebase_rtc_wakeup_template.c
+		# ${hal_src}/stm32f4xx_hal_timebase_tim_template.c
+		${hal_src}/stm32f4xx_hal_cortex.c
+		${hal_src}/stm32f4xx_hal_lptim.c
+		${hal_src}/stm32f4xx_hal_uart.c
+		${hal_src}/stm32f4xx_hal_crc.c
+		${hal_src}/stm32f4xx_hal_ltdc.c
+		${hal_src}/stm32f4xx_hal_ltdc_ex.c
+		${hal_src}/stm32f4xx_hal_usart.c
+		${hal_src}/stm32f4xx_hal_cryp.c
+		${hal_src}/stm32f4xx_hal_cryp_ex.c
+		${hal_src}/stm32f4xx_hal_wwdg.c
+		${hal_src}/stm32f4xx_hal_mmc.c
+		${hal_src}/stm32f4xx_hal_dac.c
+		# ${hal_src}/stm32f4xx_hal_msp_template.c
+		${hal_src}/stm32f4xx_hal_dac_ex.c
+		${hal_src}/stm32f4xx_hal_nand.c
+		${hal_src}/stm32f4xx_hal_dcmi.c
+		${hal_src}/stm32f4xx_hal_nor.c
+		${hal_src}/stm32f4xx_hal_dcmi_ex.c
+		${hal_src}/stm32f4xx_hal_pccard.c
+		${hal_src}/stm32f4xx_hal_dfsdm.c
+		${hal_src}/stm32f4xx_hal_pcd.c
+		${hal_src}/stm32f4xx_hal_dma.c
+		${hal_src}/stm32f4xx_hal_pcd_ex.c
+		${hal_src}/stm32f4xx_hal_dma2d.c
+		${hal_src}/stm32f4xx_hal_pwr.c
+		${hal_src}/stm32f4xx_hal_dma_ex.c
+		${hal_src}/stm32f4xx_hal_pwr_ex.c
+		${hal_src}/stm32f4xx_hal_dsi.c
+		${hal_src}/stm32f4xx_hal_qspi.c
+		${hal_src}/stm32f4xx_hal_eth.c
+		${hal_src}/stm32f4xx_hal_rcc.c
+		${hal_src}/stm32f4xx_hal_exti.c
+		${hal_src}/stm32f4xx_hal_rcc_ex.c
+		${hal_src}/stm32f4xx_hal_flash.c
+		${hal_src}/stm32f4xx_hal_rng.c
+		${hal_src}/stm32f4xx_hal_flash_ex.c
+		${hal_src}/stm32f4xx_hal_rtc.c
+		${hal_src}/stm32f4xx_hal_flash_ramfunc.c
+		${hal_src}/stm32f4xx_hal_rtc_ex.c
+		${hal_src}/stm32f4xx_hal_fmpi2c.c
+		${hal_src}/stm32f4xx_hal_sai.c
+		${hal_src}/stm32f4xx_hal_fmpi2c_ex.c
+		${hal_src}/stm32f4xx_hal_sai_ex.c
+		${hal_src}/stm32f4xx_hal_fmpsmbus.c
+		${hal_src}/stm32f4xx_hal_sd.c
+		${hal_src}/stm32f4xx_hal_fmpsmbus_ex.c
+		${hal_src}/stm32f4xx_hal_sdram.c
+		${hal_src}/stm32f4xx_hal_gpio.c
+		${hal_src}/stm32f4xx_hal_smartcard.c
+		${hal_src}/stm32f4xx_hal_hash.c
+		${hal_src}/stm32f4xx_hal_smbus.c
+		${hal_src}/stm32f4xx_hal_hash_ex.c
+		${hal_src}/stm32f4xx_hal_spdifrx.c
+		${hal_src}/stm32f4xx_hal_hcd.c
+		${hal_src}/stm32f4xx_hal_spi.c
+		${hal_src}/stm32f4xx_ll_adc.c
+		${hal_src}/stm32f4xx_ll_crc.c
+		${hal_src}/stm32f4xx_ll_dac.c
+		${hal_src}/stm32f4xx_ll_dma.c
+		${hal_src}/stm32f4xx_ll_dma2d.c
+		${hal_src}/stm32f4xx_ll_exti.c
+		${hal_src}/stm32f4xx_ll_fmc.c
+		${hal_src}/stm32f4xx_ll_fmpi2c.c
+		${hal_src}/stm32f4xx_ll_fsmc.c
+		${hal_src}/stm32f4xx_ll_gpio.c
+		${hal_src}/stm32f4xx_ll_i2c.c
+		${hal_src}/stm32f4xx_ll_lptim.c
+		${hal_src}/stm32f4xx_ll_pwr.c
+		${hal_src}/stm32f4xx_ll_rcc.c
+		${hal_src}/stm32f4xx_ll_rng.c
+		${hal_src}/stm32f4xx_ll_rtc.c
+		${hal_src}/stm32f4xx_ll_sdmmc.c
+		${hal_src}/stm32f4xx_ll_spi.c
+		${hal_src}/stm32f4xx_ll_tim.c
+		${hal_src}/stm32f4xx_ll_usart.c
+		${hal_src}/stm32f4xx_ll_usb.c
+		${hal_src}/stm32f4xx_ll_utils.c
+    )
+
+    target_include_directories(${STM32F4_HAL} PUBLIC
+        # ${cmsis_root}/Core/Include
+        ${cmsis_root}/Device/ST/STM32F4xx/Include
+        ${stm32f4_hal_root}/Inc
+        ${stm32f4_hal_conf_dir}
+    )
+    target_compile_definitions(${STM32F4_HAL} PUBLIC
+        STM32
+        STM32F4
+        ${device_compile_definition}
+    )
+    target_link_libraries(${STM32F4_HAL} PUBLIC
         stm32f4_cmsis_core
     )
 endfunction()
