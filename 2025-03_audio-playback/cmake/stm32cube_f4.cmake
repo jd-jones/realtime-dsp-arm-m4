@@ -55,7 +55,7 @@ function(add_stm32f4_ll stm32f4_ll_root stm32f4_hal_conf_dir device_compile_defi
     )
 
     target_include_directories(${STM32F4_LL} PUBLIC
-        # ${cmsis_root}/Core/Include
+        ${cmsis_root}/Core/Include
         ${cmsis_root}/Device/ST/STM32F4xx/Include
         ${stm32f4_ll_root}/Inc
         ${stm32f4_hal_conf_dir}
@@ -71,7 +71,7 @@ function(add_stm32f4_ll stm32f4_ll_root stm32f4_hal_conf_dir device_compile_defi
 endfunction()
 
 
-function(add_stm32f4_hal stm32f4_hal_root stm32f4_hal_conf_dir device_compile_definition)
+function(add_stm32f4_hal stm32f4_hal_root cmsis_root stm32f4_hal_conf_dir device_compile_definition)
     set(STM32F4_HAL stm32f4_hal_driver)
     set(hal_src ${stm32f4_hal_root}/Src)
 
@@ -173,7 +173,7 @@ function(add_stm32f4_hal stm32f4_hal_root stm32f4_hal_conf_dir device_compile_de
     )
 
     target_include_directories(${STM32F4_HAL} PUBLIC
-        # ${cmsis_root}/Core/Include
+        ${cmsis_root}/Core/Include
         ${cmsis_root}/Device/ST/STM32F4xx/Include
         ${stm32f4_hal_root}/Inc
         ${stm32f4_hal_conf_dir}
@@ -181,10 +181,86 @@ function(add_stm32f4_hal stm32f4_hal_root stm32f4_hal_conf_dir device_compile_de
     target_compile_definitions(${STM32F4_HAL} PUBLIC
         STM32
         STM32F4
+        USE_HAL_DRIVER
         ${device_compile_definition}
     )
     target_link_libraries(${STM32F4_HAL} PUBLIC
         stm32f4_cmsis_core
+    )
+endfunction()
+
+
+function(add_fat_fs fat_fs_root fat_fs_conf_dir device_compile_definition)
+    set(fat_fs_library fat_fs)
+
+    add_library(${fat_fs_library}
+        ${fat_fs_root}/option/ccsbcs.c
+        ${fat_fs_root}/option/syscall.c
+        ${fat_fs_root}/option/unicode.c
+		${fat_fs_root}/diskio.c
+		${fat_fs_root}/ff.c
+		${fat_fs_root}/ff_gen_drv.c
+    )
+    target_include_directories(${fat_fs_library} PUBLIC
+        ${fat_fs_root}
+        ${fat_fs_conf_dir}
+    )
+    target_compile_definitions(${fat_fs_library} PUBLIC
+        STM32
+        STM32F4
+        ${device_compile_definition}
+    )
+endfunction()
+
+
+function(add_usb_host_core usb_host_core_root cmsis_root stm32f4_hal_root usb_host_conf_dir device_compile_definition)
+    set(usb_host_core_library usb_host_core)
+
+    add_library(${usb_host_core_library}
+        ${usb_host_conf_dir}/usbh_conf.c
+        ${usb_host_core_root}/Src/usbh_core.c
+        ${usb_host_core_root}/Src/usbh_ctlreq.c
+        ${usb_host_core_root}/Src/usbh_ioreq.c
+        ${usb_host_core_root}/Src/usbh_pipes.c
+    )
+    target_include_directories(${usb_host_core_library} PUBLIC
+        ${cmsis_root}/Core/Include
+        ${cmsis_root}/Device/ST/STM32F4xx/Include
+        ${stm32f4_hal_root}/Inc
+        ${usb_host_conf_dir}
+        ${usb_host_core_root}/Inc
+    )
+    target_compile_definitions(${usb_host_core_library} PUBLIC
+        STM32
+        STM32F4
+        USE_HAL_DRIVER
+        ${device_compile_definition}
+    )
+    target_link_libraries(${usb_host_core_library} PUBLIC
+        stm32f4_hal_driver
+    )
+endfunction()
+
+
+function(add_usb_host_msc usb_host_msc_root usb_host_core_root device_compile_definition)
+    set(usb_host_msc_library usb_host_msc)
+
+    add_library(${usb_host_msc_library}
+		${usb_host_msc_root}/Src/usbh_msc.c
+		${usb_host_msc_root}/Src/usbh_msc_bot.c
+		${usb_host_msc_root}/Src/usbh_msc_scsi.c
+    )
+    target_include_directories(${usb_host_msc_library} PUBLIC
+        ${usb_host_core_root}/Inc
+        ${usb_host_msc_root}/Inc
+    )
+    target_compile_definitions(${usb_host_msc_library} PUBLIC
+        STM32
+        STM32F4
+        ${device_compile_definition}
+    )
+    target_link_libraries(${usb_host_msc_library} PUBLIC
+        usb_host_core
     )
 endfunction()
 

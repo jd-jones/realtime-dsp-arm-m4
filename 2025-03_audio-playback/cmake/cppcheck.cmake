@@ -8,7 +8,8 @@ else()
     set(CPPCHECK_BUILD_DIR ${CMAKE_BINARY_DIR}/cppcheck-build-dir)
     file(MAKE_DIRECTORY ${CPPCHECK_BUILD_DIR})
 
-    add_custom_target(cppcheck ALL COMMAND ${CPPCHECK} 
+    # add_custom_target(cppcheck ALL COMMAND ${CPPCHECK} 
+    add_custom_target(cppcheck COMMAND ${CPPCHECK} 
         --check-level=exhaustive
         --checkers-report=${CMAKE_BINARY_DIR}/cppcheck-checks-report.log
         --cppcheck-build-dir=${CPPCHECK_BUILD_DIR}
@@ -21,6 +22,8 @@ else()
         --suppress=checkersReport
         --suppress=*:*/CMSIS/*
         --suppress=*:*/device_support/*
+        --suppress=*:*/software_components/*
+        --suppress=*:*/usbh_conf.c
         --suppress=missingIncludeSystem
         --suppress=unmatchedSuppression
         --suppress=unusedFunction

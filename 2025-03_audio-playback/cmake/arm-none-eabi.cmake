@@ -14,8 +14,9 @@ set(CMAKE_SIZE ${TOOLCHAIN_PREFIX}size)
 
 
 # Note, -Wpedantic makes stm32f4 ll driver compilation fail
+# Note, -Werror makes usb host driver compilation fail
 set(WARNINGS
-    "-Wall -Wextra -Wfatal-errors -Wno-unused-parameter -Werror")
+    "-Wall -Wextra -Wfatal-errors -Wno-unused-parameter")
 set(C_FLAGS "-fdata-sections -ffunction-sections -MMD -MP")
 set(LINK_FLAGS "--specs=nano.specs -Wl,--gc-sections -Wl,--print-memory-usage")
 

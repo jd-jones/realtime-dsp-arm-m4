@@ -1,0 +1,3 @@
+[submodule "2025-03_audio-playback/libraries/software_components/stm32-mw-usb-host"]
+	path = 2025-03_audio-playback/libraries/software_components/stm32-mw-usb-host
+	url = git@github.com:STMicroelectronics/stm32-mw-usb-host.git
