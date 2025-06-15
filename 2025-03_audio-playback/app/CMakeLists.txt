@@ -2,6 +2,7 @@
 set(device_compile_definition       STM32F407xx)
 set(cmsis_root                      ../libraries/CMSIS)
 set(stm32f4_hal_root                ../libraries/device_support/stm32f4xx_hal_driver)
+set(bsp_root                        ../libraries/board_support/STM32F4-Discovery)
 set(fat_fs_root                     ../libraries/software_components/fat_fs/src)
 set(usb_host_core_root				../libraries/software_components/stm32-mw-usb-host/Core)
 set(usb_host_msc_root				../libraries/software_components/stm32-mw-usb-host/Class/MSC)
@@ -23,9 +24,28 @@ add_stm32f4_hal(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${device_compile_definition}
 )
-add_fat_fs(${fat_fs_root} ${CMAKE_CURRENT_SOURCE_DIR} ${device_compile_definition})
-add_usb_host_core(${usb_host_core_root} ${cmsis_root} ${stm32f4_hal_root} ${CMAKE_CURRENT_SOURCE_DIR} ${device_compile_definition})
-add_usb_host_msc(${usb_host_msc_root} ${usb_host_core_root} ${device_compile_definition})
+add_board_support(
+    ${bsp_root}
+    ${cmsis_root}
+    ${stm32f4_hal_root}
+)
+add_fat_fs(
+    ${fat_fs_root}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${device_compile_definition}
+)
+add_usb_host_core(
+    ${usb_host_core_root}
+    ${cmsis_root}
+    ${stm32f4_hal_root}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${device_compile_definition}
+)
+add_usb_host_msc(
+    ${usb_host_msc_root}
+    ${usb_host_core_root}
+    ${device_compile_definition}
+)
 
 add_executable(${EXECUTABLE} main.c sysmem.c)
 target_include_directories(${EXECUTABLE} PRIVATE
@@ -38,6 +58,7 @@ target_link_libraries(${EXECUTABLE} PRIVATE
     -T${CMAKE_CURRENT_SOURCE_DIR}/STM32F407VGTX_FLASH.ld
     stm32f4_cmsis_core
     stm32f4_hal_driver
+    stm32f4_discovery
     usb_host_core
     usb_host_msc
     fat_fs

@@ -8,56 +8,52 @@
   ******************************************************************************
   */
 
-#include <stm32f4xx_ll_bus.h>       // LL_AHB1_GRP1_EnableClock
-#include <stm32f4xx_ll_cortex.h>    // LL_SYSTICK_SetClkSource
-#include <stm32f4xx_ll_gpio.h>      // GPIO functions & definitions
-#include <stm32f4xx_ll_utils.h>     // LL_Init1msTick, LL_mDelay
 #include "stm32f4xx_hal.h"          // HAL_Init
-
-// FATFS
+#include "stm32f4_discovery.h"      // BSP_LED_INIT, BSP_LED_On
 #include "ff.h"
 #include "ff_gen_drv.h"
-
-// USB
 #include "usbh_core.h"
 #include "usbh_msc.h"
-const Diskio_drvTypeDef  USBH_Driver;
-
-
-#define GREEN_LED_PIN       LL_GPIO_PIN_12
-#define ORANGE_LED_PIN      LL_GPIO_PIN_13
-#define RED_LED_PIN         LL_GPIO_PIN_14
-#define BLUE_LED_PIN        LL_GPIO_PIN_15
-#define LED_PORT            GPIOD
-#define FOUR_MHz            4000000
-#define FIVE_HUNDRED_MS     500
 
 
 // ============================================================================
-void initialize_system_clock(uint32_t);
-void initialize_leds(void);
-void blink_leds(uint32_t);
-
-static void SystemClock_Config(void);
-static void Error_Handler(void);
-static void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id);
-static void MSC_Application(void);
-// ============================================================================
-
-
-// ============================================================================
-FATFS USBDISKFatFs;           /* File system object for USB disk logical drive */
-FIL MyFile;                   /* File object */
-char USBDISKPath[4];          /* USB Host logical drive path */
-USBH_HandleTypeDef hUSB_Host; /* USB Host handle */
+#define test_filename "STM32.TXT"
 
 typedef enum {
   APPLICATION_IDLE = 0,  
   APPLICATION_START,    
   APPLICATION_RUNNING,
-}MSC_ApplicationTypeDef;
+} MSC_ApplicationTypeDef;
 
-MSC_ApplicationTypeDef Appli_state = APPLICATION_IDLE;
+typedef enum {
+    USB_MSC_TEST_SUCCESS = 0,
+    USB_MSC_TEST_ERROR_FAILED_MOUNT,
+    USB_MSC_TEST_ERROR_FAILED_OPEN_WRITE_MODE,
+    USB_MSC_TEST_ERROR_FAILED_OPEN_READ_MODE,
+    USB_MSC_TEST_ERROR_FAILED_WRITE,
+    USB_MSC_TEST_ERROR_FAILED_READ,
+    USB_MSC_TEST_ERROR_READ_DIFFERS_FROM_WRITTEN,
+} USB_MSC_TEST_STATUS;
+// ============================================================================
+
+
+// ============================================================================
+static void SystemClock_Config(void);
+static void Error_Handler(void);
+static void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id);
+static USB_MSC_TEST_STATUS MSC_Application(void);
+static void display_msc_application_status(USB_MSC_TEST_STATUS);
+// ============================================================================
+
+
+// ============================================================================
+const Diskio_drvTypeDef  USBH_Driver;
+FATFS USBDISKFatFs;           /* File system object for USB disk logical drive */
+FIL MyFile;                   /* File object */
+char USBDISKPath[4];          /* USB Host logical drive path */
+USBH_HandleTypeDef hUSB_Host; /* USB Host handle */
+
+MSC_ApplicationTypeDef application_state = APPLICATION_IDLE;
 // ============================================================================
 
 
@@ -65,43 +61,40 @@ int main(int argc, char const* argv[]) {
     (void)argc;
     (void)argv;
 
-    /* == STM32F4xx HAL library initialization: ===============================
-     - Configure the Flash prefetch, instruction and Data caches
-     - Configure the Systick to generate an interrupt each 1 msec
-     - Set NVIC Group Priority to 4
-     - Global MSP (MCU Support Package) initialization
-    *========================================================================*/
+    // == STM32F4xx HAL library initialization: ===============================
+    //  - Configure the Flash prefetch, instruction and Data caches
+    //  - Configure the Systick to generate an interrupt each 1 msec
+    //  - Set NVIC Group Priority to 4
+    //  - Global MSP (MCU Support Package) initialization
     HAL_Init();
+    SystemClock_Config();   // Configure system clock to 168 MHz
+    BSP_LED_Init(LED3);
+    BSP_LED_Init(LED4);
+    BSP_LED_Init(LED5);
+    BSP_LED_Init(LED6);
+    // =========================================================================
 
-    initialize_system_clock(FOUR_MHz);
-    initialize_leds();
+    BSP_LED_On(LED3);
+    BSP_LED_On(LED3);
 
-    /*##-1- Link the USB Host disk I/O driver ##################################*/
-    if(FATFS_LinkDriver(&USBH_Driver, USBDISKPath) == 0)
-    { 
-        /*##-2- Init Host Library ################################################*/
+    if (FATFS_LinkDriver(&USBH_Driver, USBDISKPath) == 0) { 
         USBH_Init(&hUSB_Host, USBH_UserProcess, 0);
-
-        /*##-3- Add Supported Class ##############################################*/
         USBH_RegisterClass(&hUSB_Host, USBH_MSC_CLASS);
-
-        /*##-4- Start Host Process ###############################################*/
         USBH_Start(&hUSB_Host);
 
-        /* Run Application (Blocking mode)*/
+        USB_MSC_TEST_STATUS msc_application_status;
         while (1) {
-            // blink_leds(FIVE_HUNDRED_MS);
-            switch(Appli_state) {
+            switch(application_state) {
                 case APPLICATION_START:
-                    MSC_Application();
+                    msc_application_status = MSC_Application();
+                    display_msc_application_status(msc_application_status);
                     break;      
                 case APPLICATION_IDLE:
                     default:
                     break;      
-          }
-          
-          /* USBH_Background Process */
-          USBH_Process(&hUSB_Host);
+            }
+
+            USBH_Process(&hUSB_Host);
         }
     }
 
@@ -109,119 +102,81 @@ int main(int argc, char const* argv[]) {
 }
 
 
-void initialize_system_clock(uint32_t clock_speed_mhz) {
-    LL_Init1msTick(FOUR_MHz);
-    LL_SYSTICK_SetClkSource(LL_SYSTICK_CLKSOURCE_HCLK);
-}
-
-
-void initialize_leds(void) {
-    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOD);
-    LL_GPIO_SetPinMode(LED_PORT, GREEN_LED_PIN, LL_GPIO_MODE_OUTPUT);
-    LL_GPIO_SetPinMode(LED_PORT, ORANGE_LED_PIN, LL_GPIO_MODE_OUTPUT);
-    LL_GPIO_SetPinMode(LED_PORT, RED_LED_PIN, LL_GPIO_MODE_OUTPUT);
-    LL_GPIO_SetPinMode(LED_PORT, BLUE_LED_PIN, LL_GPIO_MODE_OUTPUT);
-    LL_GPIO_SetPinOutputType(
-        LED_PORT,
-        GREEN_LED_PIN | ORANGE_LED_PIN | RED_LED_PIN | BLUE_LED_PIN,
-        LL_GPIO_OUTPUT_PUSHPULL
-    );
-}
-
-
-void blink_leds(uint32_t delay_ms) {
-    LL_mDelay(delay_ms);
-    LL_GPIO_TogglePin(
-        LED_PORT,
-        GREEN_LED_PIN | ORANGE_LED_PIN | RED_LED_PIN | BLUE_LED_PIN
-    );
-}
-
-
 // USB CODE
-// ===================================================================================
+// ============================================================================
 /**
   * @brief  Main routine for Mass Storage Class
   * @param  None
   * @retval None
   */
-static void MSC_Application(void)
-{
-  FRESULT res;                                          /* FatFs function common result code */
-  uint32_t byteswritten, bytesread;                     /* File write/read counts */
-  uint8_t wtext[] = "This is STM32 working with FatFs"; /* File write buffer */
-  uint8_t rtext[100];                                   /* File read buffer */
-  
-  /* Register the file system object to the FatFs module */
-  if(f_mount(&USBDISKFatFs, (TCHAR const*)USBDISKPath, 0) != FR_OK)
-  {
-    /* FatFs Initialization Error */
-    Error_Handler();
-  }
-  else
-  {
-      /* Create and Open a new text file object with write access */
-      if(f_open(&MyFile, "STM32.TXT", FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) 
-      {
-        /* 'STM32.TXT' file Open for write Error */
-        Error_Handler();
-      }
-      else
-      {
-        /* Write data to the text file */
-        res = f_write(&MyFile, wtext, sizeof(wtext), (void *)&byteswritten);
-        
-        if((byteswritten == 0) || (res != FR_OK))
-        {
-          /* 'STM32.TXT' file Write or EOF Error */
-          Error_Handler();
-        }
-        else
-        {
-          /* Close the open text file */
-          f_close(&MyFile);
-          
-        /* Open the text file object with read access */
-        if(f_open(&MyFile, "STM32.TXT", FA_READ) != FR_OK)
-        {
-          /* 'STM32.TXT' file Open for read Error */
-          Error_Handler();
-        }
-        else
-        {
-          /* Read data from the text file */
-          res = f_read(&MyFile, rtext, sizeof(rtext), (void *)&bytesread);
-          
-          if((bytesread == 0) || (res != FR_OK))
-          {
-            /* 'STM32.TXT' file Read or EOF Error */
-            Error_Handler();
-          }
-          else
-          {
-            /* Close the open text file */
-            f_close(&MyFile);
-            
-            /* Compare read data with the expected data */
-            if((bytesread != byteswritten))
-            {                
-              /* Read data is different from the expected data */
-              Error_Handler();
-            }
-            else
-            {
-          /* Success of the demo: no error occurrence */
-              // FIXME
-              // BSP_LED_On(LED4);
-            }
-          }
-        }
-      }
+static USB_MSC_TEST_STATUS MSC_Application(void) {
+    // Register the file system object to the FatFs module
+    if(f_mount(&USBDISKFatFs, (TCHAR const*)USBDISKPath, 0) != FR_OK) {
+        return USB_MSC_TEST_ERROR_FAILED_MOUNT;
     }
-  }
-  
-  /* Unlink the USB disk I/O driver */
-  FATFS_UnLinkDriver(USBDISKPath);
+
+    // == WRITE ===============================================================
+    // Create and open a new text file object with write access,
+    // then write data to the text file
+    uint8_t wtext[] = "This is STM32 working with FatFs";
+    uint32_t byteswritten;
+
+    if(f_open(&MyFile, test_filename, FA_CREATE_ALWAYS | FA_WRITE) != FR_OK) {
+        return USB_MSC_TEST_ERROR_FAILED_OPEN_WRITE_MODE;
+    }
+            
+    FRESULT write_status = f_write(
+        &MyFile,
+        wtext,
+        sizeof(wtext),
+        (void *)&byteswritten
+    );
+    if((byteswritten == 0) || (write_status != FR_OK)) {
+        return USB_MSC_TEST_ERROR_FAILED_WRITE;
+    }
+    f_close(&MyFile);
+    // ========================================================================
+
+    // == READ ================================================================
+    // Open the same file in read mode and read the data.
+    uint8_t rtext[100];         // File read buffer
+    uint32_t bytesread;
+
+    if(f_open(&MyFile, test_filename, FA_READ) != FR_OK) {
+        return USB_MSC_TEST_ERROR_FAILED_OPEN_READ_MODE;
+    }
+
+    FRESULT read_status = f_read(
+        &MyFile,
+        rtext,
+        sizeof(rtext),
+        (void *)&bytesread
+    );
+    if((bytesread == 0) || (read_status != FR_OK)) {
+        return USB_MSC_TEST_ERROR_FAILED_READ;
+    }
+    f_close(&MyFile);
+    // ========================================================================
+
+    // Compare read data with the expected data
+    if(bytesread != byteswritten) {                
+        return USB_MSC_TEST_ERROR_READ_DIFFERS_FROM_WRITTEN;
+    }
+    
+    // Success of the demo: no error occurrence
+    FATFS_UnLinkDriver(USBDISKPath);
+    return USB_MSC_TEST_SUCCESS;
+}
+
+static void display_msc_application_status(USB_MSC_TEST_STATUS test_status) {
+    switch(test_status) {
+        case USB_MSC_TEST_SUCCESS:
+            BSP_LED_On(LED4);
+            break;
+        default:
+            Error_Handler();
+            break;
+    }
 }
 
 /**
@@ -230,27 +185,22 @@ static void MSC_Application(void)
   * @param  id: Host Library user message ID
   * @retval None
   */
-static void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id)
-{  
-  switch(id)
-  { 
-  case HOST_USER_SELECT_CONFIGURATION:
-    break;
-    
-  case HOST_USER_DISCONNECTION:
-    Appli_state = APPLICATION_IDLE;
-    // BSP_LED_Off(LED4);  FIXME
-    // BSP_LED_Off(LED5);  FIXME
-    f_mount(NULL, (TCHAR const*)"", 0);          
-    break;
-    
-  case HOST_USER_CLASS_ACTIVE:
-    Appli_state = APPLICATION_START;
-    break;
-    
-  default:
-    break; 
-  }
+static void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id) {  
+    switch(id) { 
+        case HOST_USER_SELECT_CONFIGURATION:
+            break;
+        case HOST_USER_DISCONNECTION:
+            application_state = APPLICATION_IDLE;
+            BSP_LED_Off(LED4);
+            BSP_LED_Off(LED5);
+            f_mount(NULL, (TCHAR const*)"", 0);          
+            break;
+        case HOST_USER_CLASS_ACTIVE:
+            application_state = APPLICATION_START;
+            break;
+        default:
+            break; 
+    }
 }
 
 /**
@@ -273,45 +223,43 @@ static void USBH_UserProcess(USBH_HandleTypeDef *phost, uint8_t id)
   * @param  None
   * @retval None
   */
-static void SystemClock_Config  (void)
-{
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_OscInitTypeDef RCC_OscInitStruct;
+static void SystemClock_Config(void) {
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
+    RCC_OscInitTypeDef RCC_OscInitStruct;
 
-  /* Enable Power Control clock */
-  __HAL_RCC_PWR_CLK_ENABLE();
-  
-  /* The voltage scaling allows optimizing the power consumption when the device is 
+    /* Enable Power Control clock */
+    __HAL_RCC_PWR_CLK_ENABLE();
+
+    /* The voltage scaling allows optimizing the power consumption when the device is 
      clocked below the maximum system frequency, to update the voltage scaling value 
      regarding system frequency refer to product datasheet.  */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-  
-  /* Enable HSE Oscillator and activate PLL with HSE as source */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 336;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 7;
-  HAL_RCC_OscConfig (&RCC_OscInitStruct);
-  
-  /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 
-     clocks dividers */
-  RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;  
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;  
-  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
+    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-  /* STM32F405x/407x/415x/417x Revision Z and upper devices: prefetch is supported  */
-  if (HAL_GetREVID() >= 0x1001)
-  {
-    /* Enable the Flash prefetch */
-    __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
-  }
+    /* Enable HSE Oscillator and activate PLL with HSE as source */
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 8;
+    RCC_OscInitStruct.PLL.PLLN = 336;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    RCC_OscInitStruct.PLL.PLLQ = 7;
+    HAL_RCC_OscConfig (&RCC_OscInitStruct);
+
+    /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 
+     clocks dividers */
+    RCC_ClkInitStruct.ClockType = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;  
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;  
+    HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5);
+
+    /* STM32F405x/407x/415x/417x Revision Z and upper devices: prefetch is supported  */
+    if (HAL_GetREVID() >= 0x1001) {
+        /* Enable the Flash prefetch */
+        __HAL_FLASH_PREFETCH_BUFFER_ENABLE();
+    }
 }
 
 /**
@@ -319,13 +267,10 @@ static void SystemClock_Config  (void)
   * @param  None
   * @retval None
   */
-static void Error_Handler(void)
-{
-  /* Turn LED5 on */
-  // BSP_LED_On(LED5);  FIXME
-  while(1)
-  {
-  }
+static void Error_Handler(void) {
+    /* Turn LED5 on */
+    BSP_LED_On(LED5);
+    while(1) {}
 }
 
 #ifdef  USE_FULL_ASSERT
@@ -342,9 +287,7 @@ void assert_failed(uint8_t* file, uint32_t line)
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
 
   /* Infinite loop */
-  while (1)
-  {
-  }
+  while (1) {}
 }
 #endif
 
